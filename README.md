@@ -1,0 +1,1 @@
+# Lottery Analysis Web App\n\nRun locally: python app.py\nDeploy: push to GitHub and use Render.
