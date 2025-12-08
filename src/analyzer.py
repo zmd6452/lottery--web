@@ -1,38 +1,75 @@
-from collections import Counter, namedtuple
-import re
+import pandas as pd
+import numpy as np
+import os
+from collections import Counter
 
-Result = namedtuple("Result", ["total_tickets", "frequencies", "top_numbers"])
+def parse_magnum(df):
+    if 'number' in df.columns:
+        col = 'number'
+    elif 'results' in df.columns:
+        col = 'results'
+    else:
+        col = df.columns[0]
+    nums = df[col].astype(str).str.strip().str.zfill(4)
+    return nums.tolist()
 
-_NUMBER_RE = re.compile(r"-?\d+")
+def parse_toto(df):
+    for c in ['number','num','result']:
+        if c in df.columns:
+            nums = df[c].astype(str).str.strip().str.zfill(4)
+            return nums.tolist()
+    dcols = [c for c in df.columns if c.lower().startswith('d') or 'digit' in c.lower()]
+    if len(dcols) >=4:
+        nums = df[dcols].astype(str).agg(''.join, axis=1)
+        nums = nums.str.zfill(4)
+        return nums.tolist()
+    return parse_magnum(df)
 
-def analyze(path, top_n=10):
-    """
-    Read the file at `path`, parse numeric tokens on each non-empty line,
-    count frequencies across all numbers, and return a Result:
-      - total_tickets: number of non-empty lines parsed
-      - frequencies: list of (number, count) sorted ascending by number
-      - top_numbers: list of (number, count) sorted by count desc
-    Non-numeric tokens are ignored.
-    """
-    counter = Counter()
-    total_lines = 0
+def parse_damacai(df):
+    return parse_magnum(df)
 
-    with open(path, "r", encoding="utf-8") as f:
-        for raw in f:
-            line = raw.strip()
-            if not line:
-                continue
-            total_lines += 1
-            # find integers in the line
-            nums = _NUMBER_RE.findall(line)
-            for n in nums:
-                try:
-                    num = int(n)
-                    counter[num] += 1
-                except ValueError:
-                    continue
+def normalize_file(path):
+    df = pd.read_csv(path)
+    cols = [c.lower() for c in df.columns]
+    if any('magnum' in c for c in cols) or 'number' in cols or 'results' in cols:
+        return parse_magnum(df)
+    elif any('toto' in c for c in cols) or any(c.startswith('d') for c in cols):
+        return parse_toto(df)
+    else:
+        return parse_magnum(df)
 
-    freqs_sorted = sorted(counter.items(), key=lambda x: x[0])  # by number
-    top = counter.most_common(top_n)
-
-    return Result(total_tickets=total_lines, frequencies=freqs_sorted, top_numbers=top)
+def analyze_files(paths, last_n=100):
+    all_nums = []
+    file_map = {}
+    for p in paths:
+        if not os.path.exists(p):
+            continue
+        nums = normalize_file(p)
+        file_map[os.path.basename(p)] = nums
+        all_nums.extend(nums)
+    if len(all_nums) == 0:
+        return {'error': 'no numbers found'}
+    recent = all_nums[-last_n:]
+    pos_counts = [Counter() for _ in range(4)]
+    overall = Counter()
+    pair_co = Counter()
+    for num in recent:
+        if len(num) < 4:
+            num = num.zfill(4)
+        digits = list(num[:4])
+        for i,d in enumerate(digits):
+            pos_counts[i][d] += 1
+            overall[d] += 1
+        for i in range(4):
+            for j in range(i+1,4):
+                pair_co[(digits[i], digits[j])] += 1
+    pos_freq = [{k:v for k,v in c.most_common()} for c in pos_counts]
+    overall_freq = {k:v for k,v in overall.most_common()}
+    pairs = {f"{a}{b}": v for (a,b),v in pair_co.items()}
+    return {
+        'recent_count': len(recent),
+        'position_frequency': pos_freq,
+        'overall_frequency': overall_freq,
+        'pair_cooccurrence': pairs,
+        'files_parsed': {k: len(v) for k,v in file_map.items()}
+    }
