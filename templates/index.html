@@ -1,55 +1,54 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Lottery Web Analyzer</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 2rem; }
-      .flash { color: red; }
-      table { border-collapse: collapse; margin-top: 1rem; }
-      th, td { border: 1px solid #ccc; padding: 6px 10px; }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Lottery Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
   </head>
-  <body>
-    <h1>Lottery Analyzer</h1>
-
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul class="flash">
-          {% for m in messages %}
-            <li>{{ m }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-
-    <form method="post" enctype="multipart/form-data">
-      <label for="file">Upload CSV or TXT of draws:</label>
-      <input type="file" name="file" id="file" accept=".csv,.txt" required />
-      <button type="submit">Upload & Analyze</button>
-    </form>
-
-    {% if results %}
-      <h2>Results for {{ filename or 'uploaded file' }}</h2>
-      <p>Total tickets (lines parsed): {{ results.total_tickets }}</p>
-
-      <h3>Top numbers</h3>
-      <ol>
-        {% for num, count in results.top_numbers %}
-          <li>{{ num }} — {{ count }} times</li>
-        {% endfor %}
-      </ol>
-
-      <h3>Frequencies</h3>
-      <table>
-        <thead><tr><th>Number</th><th>Count</th></tr></thead>
-        <tbody>
-        {% for num, count in results.frequencies %}
-          <tr><td>{{ num }}</td><td>{{ count }}</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    {% endif %}
+  <body class="bg-light">
+    <div class="container py-4">
+      <h1 class="mb-4">Lottery Analysis - Upload CSVs</h1>
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+          <label>Select CSV files (Magnum/Toto/DaMaCai)</label>
+          <input type="file" name="files" multiple class="form-control-file" required>
+        </div>
+        <button class="btn btn-primary">Upload</button>
+      </form>
+      <hr/>
+      <h3>Uploaded files</h3>
+      <ul>
+      {% for f in files %}
+        <li>{{ f }} - <a href="/download/{{ f }}">Download</a></li>
+      {% else %}
+        <li>No files uploaded yet.</li>
+      {% endfor %}
+      </ul>
+      <hr/>
+      <h3>Analyze</h3>
+      <form id="analyzeForm">
+        <div class="form-group">
+          <label>Choose files (comma-separated filenames)</label>
+          <input class="form-control" id="files" placeholder="e.g. 1234__magnum.csv">
+        </div>
+        <div class="form-group">
+          <label>Last N draws</label>
+          <input class="form-control" id="last_n" value="100">
+        </div>
+        <button type="button" class="btn btn-success" onclick="runAnalyze()">Run Analysis</button>
+      </form>
+      <pre id="out" class="mt-3 p-3 bg-white border"></pre>
+    </div>
+    <script>
+    async function runAnalyze(){
+      const files = document.getElementById('files').value;
+      const last_n = document.getElementById('last_n').value;
+      if(!files){ alert('Enter filenames'); return; }
+      const resp = await fetch(`/analyze?files=${encodeURIComponent(files)}&last_n=${last_n}`);
+      const data = await resp.json();
+      document.getElementById('out').textContent = JSON.stringify(data, null, 2);
+    }
+    </script>
   </body>
 </html>
