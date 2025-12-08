@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lottery Web Analyzer</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; }
+      .flash { color: red; }
+      table { border-collapse: collapse; margin-top: 1rem; }
+      th, td { border: 1px solid #ccc; padding: 6px 10px; }
+    </style>
+  </head>
+  <body>
+    <h1>Lottery Analyzer</h1>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash">
+          {% for m in messages %}
+            <li>{{ m }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" enctype="multipart/form-data">
+      <label for="file">Upload CSV or TXT of draws:</label>
+      <input type="file" name="file" id="file" accept=".csv,.txt" required />
+      <button type="submit">Upload & Analyze</button>
+    </form>
+
+    {% if results %}
+      <h2>Results for {{ filename or 'uploaded file' }}</h2>
+      <p>Total tickets (lines parsed): {{ results.total_tickets }}</p>
+
+      <h3>Top numbers</h3>
+      <ol>
+        {% for num, count in results.top_numbers %}
+          <li>{{ num }} — {{ count }} times</li>
+        {% endfor %}
+      </ol>
+
+      <h3>Frequencies</h3>
+      <table>
+        <thead><tr><th>Number</th><th>Count</th></tr></thead>
+        <tbody>
+        {% for num, count in results.frequencies %}
+          <tr><td>{{ num }}</td><td>{{ count }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </body>
+</html>
